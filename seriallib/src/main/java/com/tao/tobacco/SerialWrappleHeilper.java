@@ -25,11 +25,14 @@ public class SerialWrappleHeilper extends Thread {
     private OnMessageCall onMessageCall;
     private MyHandler myHandler;
     public static final int sendDataWhat = 1;
+    public static final int receiveDataWhat = 2;
+
     private long wattingTime = 5 * 1000;
     private int dataLen = 12;
     boolean useHandler = false;
     boolean isPrepared = false;
     boolean isAutoNext = false;
+    TobaccoProtocol.TobaccoCmdInfo info ;
 
     public SerialWrappleHeilper(Context context, String serialPath, int baudrate, OnMessageCall onMessageCall) {
         this.onMessageCall = onMessageCall;
@@ -62,6 +65,7 @@ public class SerialWrappleHeilper extends Thread {
     public void send(TobaccoProtocol.TobaccoCmdInfo info) {
         if (cmdList.contains(info))
         cmdList.remove(info);
+        this.info =info ;
         if (useHandler) {
             Message message = getMessage(sendDataWhat, info);
             myHandler.sendMessage(message);
@@ -74,7 +78,7 @@ public class SerialWrappleHeilper extends Thread {
 
     public void send(int len, long time, TobaccoProtocol.TobaccoCmdInfo info) {
         cmdList.remove(info);
-
+        this.info =info ;
         if (useHandler) {
             Message message = getMessage(sendDataWhat, len, time, info);
             myHandler.sendMessage(message);
@@ -177,6 +181,10 @@ public class SerialWrappleHeilper extends Thread {
     }
 
     class MyHandler extends Handler {
+
+        private TobaccoProtocol.TobaccoCmdInfo info;
+        private int len;
+
         public MyHandler(Looper looper) {
             super(looper);
         }
@@ -198,11 +206,31 @@ public class SerialWrappleHeilper extends Thread {
 
         private void sendCmd(Message msg) {
             Log.e("sendCmd", "" + msg.toString());
-            TobaccoProtocol.TobaccoCmdInfo info = (TobaccoProtocol.TobaccoCmdInfo) msg.getData().getSerializable("data");
-            int len = msg.getData().getInt("len", dataLen);
+            info = (TobaccoProtocol.TobaccoCmdInfo) msg.getData().getSerializable("data");
+            len = msg.getData().getInt("len", dataLen);
             long wattingTime = msg.getData().getLong("wattingTime", SerialWrappleHeilper.this.wattingTime);
             serialHelper.send(info);
             serialHelper.receiver(len, wattingTime, info);
         }
+        public  void reReceiver(Message msg){
+            Log.e("sendCmd", "" + msg.toString());
+            info = (TobaccoProtocol.TobaccoCmdInfo) msg.getData().getSerializable("data");
+            len = msg.getData().getInt("len", dataLen);
+            wattingTime = msg.getData().getLong("wattingTime", SerialWrappleHeilper.this.wattingTime);
+            serialHelper.receiver(len, wattingTime, info);
+        }
+
     }
+
+    public  void reReceiver(){
+        if (useHandler) {
+            Message message = getMessage(receiveDataWhat, info);
+            myHandler.sendMessage(message);
+        } else {
+            serialHelper.send(info);
+            serialHelper.receiver(info);
+
+        }
+    }
+
 }
